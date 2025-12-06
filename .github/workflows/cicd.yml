@@ -3,8 +3,6 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   build:
@@ -34,3 +32,6 @@ jobs:
       with:
         args: >
           -Dsonar.projectKey=my-tictac-project  -Dsonar.sources=src  -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}  -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    - name: Build Node App
+      run: npm run build
