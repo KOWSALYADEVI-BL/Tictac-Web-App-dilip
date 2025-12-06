@@ -33,9 +33,27 @@ jobs:
         args: >
           -Dsonar.projectKey=my-tictac-project -Dsonar.sources=src -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-    # -------------------------------
-    # FIX FOR HTTP NEXUS REGISTRY
-    # -------------------------------
+    # ----------------------------------------------------
+    #               DOCKER IMAGE BUILD
+    # ----------------------------------------------------
+    - name: Build Docker Image
+      run: docker build -t tictac-app:latest .
+
+    # ----------------------------------------------------
+    #                TRIVY SCAN ADDED HERE
+    # ----------------------------------------------------
+    - name: Run Trivy Vulnerability Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'tictac-app:latest'
+        format: 'table'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '0' # Do NOT fail pipeline, only report
+        ignore-unfixed: true
+
+    # ----------------------------------------------------
+    #           NEXUS HTTP AUTHENTICATION FIX
+    # ----------------------------------------------------
     - name: Configure Docker auth for HTTP Nexus
       env:
         NEXUS_HOST: 16.170.231.163:8081
@@ -46,16 +64,16 @@ jobs:
         AUTH_TOKEN=$(printf "%s:%s" "$NEXUS_USER" "$NEXUS_PASS" | base64 -w0)
         cat > "$HOME/.docker/config.json" <<EOF
         {
-         "auths": {
-         "$NEXUS_HOST": {
-          "auth": "$AUTH_TOKEN"
-                         }
-                  }
+          "auths": {
+           "$NEXUS_HOST": {
+           "auth": "$AUTH_TOKEN"
+                           }
+                    } 
         }
         EOF
 
-    - name: Build Docker Image
-      run: docker build -t tictac-app:latest .
-
     - name: Tag Docker Image
-      run: docker tag tictac-app:latest 16.170.231.163:8081/tictac-a
+      run: docker tag tictac-app:latest 16.170.231.163:8081/tictac-app:latest
+
+    - name: Push Docker Image to Nexus
+      run: docker push 16.170.231.163:8081/tictac-app:latest
