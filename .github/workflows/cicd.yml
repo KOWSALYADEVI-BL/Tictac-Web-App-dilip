@@ -35,3 +35,5 @@ jobs:
 
     - name: Build Node App
       run: npm run build
+    - name: Login to Nexus Docker Registry
+      run: echo "${{ secrets.NEXUS_PASSWORD }}" | docker login ${{ secrets.NEXUS_URL }} -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
