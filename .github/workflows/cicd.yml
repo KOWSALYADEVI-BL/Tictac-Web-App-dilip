@@ -78,7 +78,7 @@ jobs:
       with:
         sarif_file: docker-result.sarif
 
-    # Push only when scan passes
+    # Push only when scan
     - name: Push Docker Image
       if: success()
       run: |
