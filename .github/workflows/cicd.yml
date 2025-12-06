@@ -36,5 +36,9 @@ jobs:
     - name: Build Node App
       run: npm run build
 
-    - name: Login to Nexus Docker Registry (HTTP)
-      run: docker login 16.170.231.163:8081 -u ${{ secrets.NEXUS_USERNAME }} -p ${{ secrets.NEXUS_PASSWORD }} --tls-verify=false
+    - name: Login to Nexus Docker Registry
+      uses: docker/login-action@v2
+      with:
+        registry: 16.170.231.163:8081
+        username: ${{ secrets.NEXUS_USERNAME }}
+        password: ${{ secrets.NEXUS_PASSWORD }}
