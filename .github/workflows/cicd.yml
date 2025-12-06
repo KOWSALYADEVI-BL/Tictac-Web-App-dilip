@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ] # use your default branch
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -31,7 +31,6 @@ jobs:
       env:
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
       with:
         args: >
-          -Dsonar.projectKey=my-tictac-project -Dsonar.sources=src -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+          -Dsonar.projectKey=my-tictac-project  -Dsonar.sources=src  -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}  -Dsonar.login=${{ secrets.SONAR_TOKEN }}
