@@ -36,11 +36,5 @@ jobs:
     - name: Build Node App
       run: npm run build
 
-    # ✅ Fix for HTTP Nexus registry
-    - name: Configure Docker Insecure Registry
-      run: |
-        mkdir -p ~/.docker
-        echo '{"insecure-registries":["16.170.231.163:8081"]}' > ~/.docker/daemon.json
-
-    - name: Login to Nexus Docker Registry
-      run: echo "${{ secrets.NEXUS_PASSWORD }}" | docker login 16.170.231.163:8081 -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
+    - name: Login to Nexus Docker Registry (HTTP)
+      run: docker login 16.170.231.163:8081 -u ${{ secrets.NEXUS_USERNAME }} -p ${{ secrets.NEXUS_PASSWORD }} --tls-verify=false
