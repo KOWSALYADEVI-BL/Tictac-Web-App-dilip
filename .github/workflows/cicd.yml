@@ -31,9 +31,16 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
-          -Dsonar.projectKey=my-tictac-project  -Dsonar.sources=src  -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}  -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+          -Dsonar.projectKey=my-tictac-project -Dsonar.sources=src -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
     - name: Build Node App
       run: npm run build
+
+    # ✅ Fix for HTTP Nexus registry
+    - name: Configure Docker Insecure Registry
+      run: |
+        mkdir -p ~/.docker
+        echo '{"insecure-registries":["16.170.231.163:8081"]}' > ~/.docker/daemon.json
+
     - name: Login to Nexus Docker Registry
-      run: echo "${{ secrets.NEXUS_PASSWORD }}" | docker login ${{ secrets.NEXUS_URL }} -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
+      run: echo "${{ secrets.NEXUS_PASSWORD }}" | docker login 16.170.231.163:8081 -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
