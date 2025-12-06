@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
 jobs:
   build:
@@ -12,70 +12,24 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-    - name: Install Dependencies
-      run: npm install
+    - name: Docker Login to Nexus
+      run: |
+        docker login 16.170.231.163:5000 -u ${{ secrets.NEXUS_USER }} -p ${{ secrets.NEXUS_PASS }}
 
-    - name: Run Build
-      run: npm run build
-
-    - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@v2
-      env:
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        args: >
-          -Dsonar.projectKey=my-tictac-project -Dsonar.sources=src -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-
-    # ----------------------------------------------------
-    #               DOCKER IMAGE BUILD
-    # ----------------------------------------------------
     - name: Build Docker Image
-      run: docker build -t tictac-app:latest .
+      run: |
+        docker build -t 16.170.231.163:5000/tictac-app:latest .
 
     - name: Run Trivy Vulnerability Scan
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: 'tictac-app:latest'
-        format: 'table'
-        severity: 'CRITICAL,HIGH'
+        image-ref: '16.170.231.163:5000/tictac-app:latest'
+        severity: HIGH,CRITICAL
         exit-code: '0'
-        ignore-unfixed: true
 
-    # 🔥 CRITICAL FIX FOR HTTP NEXUS
-    - name: Configure Docker for Insecure Registry
+    - name: Push Docker Image to Nexus
       run: |
-        sudo mkdir -p /etc/docker
-        echo '{ "insecure-registries": ["16.170.231.163:8081"] }' | sudo tee /etc/docker/daemon.json
-        sudo systemctl restart docker
-
-    # Authentication for HTTP nexus
-    - name: Configure Docker auth for HTTP Nexus
-      env:
-        NEXUS_HOST: 16.170.231.163:8081
-        NEXUS_USER: ${{ secrets.NEXUS_USERNAME }}
-        NEXUS_PASS: ${{ secrets.NEXUS_PASSWORD }}
-      run: |
-        mkdir -p "$HOME/.docker"
-        AUTH_TOKEN=$(printf "%s:%s" "$NEXUS_USER" "$NEXUS_PASS" | base64 -w0)
-        cat > "$HOME/.docker/config.json" <<EOF
-        {
-            "auths": {
-            "$NEXUS_HOST": {
-            "auth": "$AUTH_TOKEN"
-                            }
-                       }
-        }
-          EOF
-
-    - name: Tag Docker Image
-      run: docker tag tictac-app:latest 16.170.231.163:8081/tictac-app:latest
-
-    - name: Push Docker Image
-      run: docker push 16.170.231.163:8081/tictac-app:latest
+        docker push 16.170.231.163:5000/tictac-app:latest
