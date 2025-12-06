@@ -2,6 +2,8 @@ name: CI/CD Pipeline
 
 on:
   push:
+    branches: [ "main" ] # use your default branch
+  pull_request:
     branches: [ "main" ]
 
 jobs:
@@ -17,3 +19,9 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run Build
+      run: npm run build
