@@ -2,34 +2,85 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 jobs:
-  build:
+  build_and_scan:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+    # Checkout code
+    - name: Checkout Code from Repo
+      uses: actions/checkout@v2
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Docker Login to Nexus
-      run: |
-        docker login 16.170.231.163:5000 -u ${{ secrets.NEXUS_USER }} -p ${{ secrets.NEXUS_PASS }}
-
-    - name: Build Docker Image
-      run: |
-        docker build -t 16.170.231.163:5000/tictac-app:latest .
-
-    - name: Run Trivy Vulnerability Scan
-      uses: aquasecurity/trivy-action@master
+    # Setup Node.js
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v2
       with:
-        image-ref: '16.170.231.163:5000/tictac-app:latest'
-        severity: HIGH,CRITICAL
-        exit-code: '0'
+        node-version: '14'
 
-    - name: Push Docker Image to Nexus
+    # Install Dependencies
+    - name: Install Dependencies
+      run: npm install
+
+    # Install SonarQube Scanner
+    - name: Install SonarQube Scanner
       run: |
-        docker push 16.170.231.163:5000/tictac-app:latest
+        curl -sLO https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
+        unzip sonar-scanner-cli-4.6.2.2472-linux.zip
+        echo "$(pwd)/sonar-scanner-4.6.2.2472-linux/bin" >> $GITHUB_PATH
+
+    # Run SonarQube Scan
+    - name: Run SonarQube Analysis
+      run: |
+        sonar-scanner \
+          -Dsonar.projectKey=Tictac-App \
+          -Dsonar.sources=. \
+          -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+
+    # Setup AWS credentials
+    - name: Setup AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    # Login to Amazon ECR
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v1
+
+    # Build Docker image using short SHA tag
+    - name: Build Docker Image
+      id: build_image
+      run: |
+        AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+        SHORT_SHA=${GITHUB_SHA::7}
+        IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/tictac:$SHORT_SHA"
+        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+        docker build -t $IMAGE .
+
+    # Trivy Scan of Docker Image
+    - name: Scan the Docker Image
+      uses: aquasecurity/trivy-action@0.20.0
+      with:
+        image-ref: ${{ env.IMAGE }}
+        format: sarif
+        output: docker-result.sarif
+        ignore-unfixed: false
+        severity: HIGH,CRITICAL
+        exit-code: "0"
+
+    # Upload Trivy results to GitHub
+    - name: Upload Trivy Output
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: docker-result.sarif
+
+    # Push only when scan passes
+    - name: Push Docker Image
+      if: success()
+      run: |
+        echo "Pushing Docker Image: $IMAGE"
+        docker push $IMAGE
