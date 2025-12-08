@@ -89,3 +89,16 @@ jobs:
     - name: Setup EKS Kubectl
       run: |
         aws eks update-kubeconfig --region eu-north-1 --name ${{ secrets.EKS_NAME }}
+
+    # 12️⃣ Deploy to kubernetes
+    - name: Deploy to Kubernetes
+      env:
+        IMAGE: ${{ env.IMAGE }}
+      run: |
+        echo "Deploying image: $IMAGE to EKS cluster: ${{ secrets.EKS_NAME }}"
+
+        kubectl set image deployment/tictac-app \
+          tictac=$IMAGE -n webapps --record
+
+        echo "Waiting for rollout to finish..."
+        kubectl rollout status deployment/tictac-app -n webapps
