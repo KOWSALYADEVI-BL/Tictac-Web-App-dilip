@@ -97,23 +97,27 @@ jobs:
         aws-region: eu-north-1
 
     # Configure kubectl for EKS
+    - name: Create CA Certificate File
+      run: |
+        echo "${{ secrets.EKS_CA_DATA }}" | base64 --decode > ca.crt
+
     - name: Configure kubectl for EKS
       run: |
         kubectl config set-cluster ${{ secrets.EKS_NAME }} \
-         --server=${{ secrets.EKS_ENDPOINT }} \
-         --certificate-authority=ca.crt
+        --server=${{ secrets.EKS_ENDPOINT }} \
+        --certificate-authority=ca.crt
 
         kubectl config set-credentials github-user \
-         --token=${{ secrets.EKS_TOKEN }}
+        --token=${{ secrets.EKS_TOKEN }}
 
         kubectl config set-context ${{ secrets.EKS_NAME }} \
          --cluster=${{ secrets.EKS_NAME }} \
          --user=github-user \
          --namespace=default
 
-         kubectl config use-context ${{ secrets.EKS_NAME }}
+        kubectl config use-context ${{ secrets.EKS_NAME }}
 
-    # 12️⃣ Deploy to kubernetes
+    # 12️⃣ Deploy to kubernete
     - name: Deploy to Kubernetes
       env:
         IMAGE: ${{ env.IMAGE }}
