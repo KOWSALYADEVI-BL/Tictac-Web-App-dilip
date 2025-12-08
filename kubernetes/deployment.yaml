@@ -4,7 +4,7 @@ metadata:
   name: tictac-app
   namespace: webapps
 spec:
-  replicas: 5
+  replicas: 2
   selector:
     matchLabels:
       app: tictac
@@ -14,12 +14,10 @@ spec:
         app: tictac
     spec:
       imagePullSecrets:
-        - name: ecr-secret
+      - name: ecr-secret
       containers:
-        - name: tictac
-          image: dilipopseng/tictac:26
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 80
-
-###
+      - name: tictac
+        image: 191080270307.dkr.ecr.eu-north-1.amazonaws.com/tictac:e0ce986
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
