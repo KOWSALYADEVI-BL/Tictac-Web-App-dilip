@@ -72,7 +72,7 @@ jobs:
         severity: HIGH,CRITICAL
         exit-code: "0"
 
-    # Upload Trivy results to GitHub
+    # Upload Trivy results to Git
     - name: Upload Trivy Output
       uses: github/codeql-action/upload-sarif@v2
       with:
