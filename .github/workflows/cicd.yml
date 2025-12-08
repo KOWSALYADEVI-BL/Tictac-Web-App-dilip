@@ -45,7 +45,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: eu-north-1
 
     # Login to Amazon ECR
     - name: Login to Amazon ECR
@@ -57,7 +57,7 @@ jobs:
       run: |
         AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
         SHORT_SHA=${GITHUB_SHA::7}
-        IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/tictac:$SHORT_SHA"
+        IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/tictac:$SHORT_SHA"
         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
         docker build -t $IMAGE .
 
@@ -84,3 +84,8 @@ jobs:
       run: |
         echo "Pushing Docker Image: $IMAGE"
         docker push $IMAGE
+    - name: Stetup Eks Kubectl
+      run: |
+        aws eks update-kubeconfig --region eu-north-1 --name ${{
+          secrets.EKS_NAME
+          }}
