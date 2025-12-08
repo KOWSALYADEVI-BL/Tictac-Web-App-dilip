@@ -85,20 +85,43 @@ jobs:
         echo "Pushing Docker Image: $IMAGE"
         docker push $IMAGE
 
-    # 12️⃣ Setup EKS Kubectll
-    - name: Setup EKS Kubectl
+    # ------------------------------
+    # Configure EKS (eu-north-1)
+    # ------------------------------
+
+    - name: Setup AWS Credentials (EKS Region)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-north-1
+
+    # Configure kubectl for EKS
+    - name: Configure kubectl for EKS
       run: |
-        aws eks update-kubeconfig --region eu-north-1 --name ${{ secrets.EKS_NAME }}
+        kubectl config set-cluster ${{ secrets.EKS_NAME }} \
+         --server=${{ secrets.EKS_ENDPOINT }} \
+         --certificate-authority=ca.crt
 
-    # 12️⃣ Deploy to kubernetes
-    - name: Deploy to Kubernetes
-      env:
-        IMAGE: ${{ env.IMAGE }}
-      run: |
-        echo "Deploying image: $IMAGE to EKS cluster: ${{ secrets.EKS_NAME }}"
+        kubectl config set-credentials github-user \
+         --token=${{ secrets.EKS_TOKEN }}
 
-        kubectl set image deployment/tictac-app \
-          tictac=$IMAGE -n webapps --record
+        kubectl config set-context ${{ secrets.EKS_NAME }} \
+         --cluster=${{ secrets.EKS_NAME }} \
+         --user=github-user \
+         --namespace=default
 
-        echo "Waiting for rollout to finish..."
-        kubectl rollout status deployment/tictac-app -n webapps
+         kubectl config use-context ${{ secrets.EKS_NAME }}
+
+# # 12️⃣ Deploy to kubernetes
+#     - name: Deploy to Kubernetes
+#       env:
+#         IMAGE: ${{ env.IMAGE }}
+#       run: |
+#         echo "Deploying image: $IMAGE to EKS cluster: ${{ secrets.EKS_NAME }}"
+
+#         kubectl set image deployment/tictac-app \
+#           tictac=$IMAGE -n webapps --record
+
+#         echo "Waiting for rollout to finish..."
+#         kubectl rollout status deployment/tictac-app -n webapps
