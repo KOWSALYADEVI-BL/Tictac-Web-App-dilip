@@ -9,28 +9,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout code
-    - name: Checkout Code from Repo
-      uses: actions/checkout@v2
 
-    # 2️⃣ Setup Node.js
+    - name: Checkout Code from Repo
+      uses: actions/checkout@v4
+
     - name: Setup Node.js Environment
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: '14'
 
-    # 3️⃣ Install dependencies
     - name: Install Dependencies
       run: npm install
 
-    # 4️⃣ Install SonarQube Scanner
     - name: Install SonarQube Scanner
       run: |
         curl -sLO https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
         unzip sonar-scanner-cli-4.6.2.2472-linux.zip
         echo "$(pwd)/sonar-scanner-4.6.2.2472-linux/bin" >> $GITHUB_PATH
 
-    # 5️⃣ Run SonarQube Analysis
     - name: Run SonarQube Scan
       run: |
         sonar-scanner \
@@ -39,29 +35,24 @@ jobs:
           -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
           -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-    # 6️⃣ Setup AWS credentials
     - name: Setup AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-north-1
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    # 7️⃣ Login to Amazon ECR
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
 
-    # 8️⃣ Build Docker image using short SHA tag
     - name: Build Docker Image
-      id: build_image
       run: |
         AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
         SHORT_SHA=${GITHUB_SHA::7}
-        IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.eu-north-1.amazonaws.com/tictac:$SHORT_SHA"
+        IMAGE="$AWS_ACCOUNT_ID.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/tictac:$SHORT_SHA"
         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
         docker build -t $IMAGE .
 
-    # 9️⃣ Scan Docker image with Trivy
     - name: Scan the Docker Image
       uses: aquasecurity/trivy-action@0.20.0
       with:
@@ -72,42 +63,24 @@ jobs:
         severity: HIGH,CRITICAL
         exit-code: "0"
 
-    # 🔟 Upload Trivy results to GitHub
     - name: Upload Trivy Output
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: docker-result.sarif
 
-    # 11️⃣ Push Docker image to ECR
     - name: Push Docker Image
-      run: |
-        echo "Pushing Docker Image: $IMAGE"
-        docker push $IMAGE
+      run: docker push $IMAGE
 
-    # ------------------------------
-    # Configure EKS (eu-north-1) using AWS IAM
-    # ------------------------------
     - name: Configure kubectl for EKS
       run: |
         aws eks update-kubeconfig \
-          --region eu-north-1 \
-          --name ${{ secrets.EKS_NAME }} \
-          --alias github-eks
+          --region ${{ secrets.AWS_REGION }} \
+          --name ${{ secrets.EKS_NAME }}
 
-    # Optional: verify kubectl access
     - name: Verify kubectl access
-      run: |
-        kubectl get pods -n webapps
+      run: kubectl get pods -n webapps
 
-    # 12️⃣ Deploy to Kubernetes
     - name: Deploy to Kubernetes
-      env:
-        IMAGE: ${{ env.IMAGE }}
       run: |
-        echo "Deploying image: $IMAGE to EKS cluster: ${{ secrets.EKS_NAME }}"
-
-        kubectl set image deployment/tictac-app \
-          tictac=$IMAGE -n webapps
-
-        echo "Waiting for rollout to finish..."
+        kubectl set image deployment/tictac-app tictac=$IMAGE -n webapps
         kubectl rollout status deployment/tictac-app -n webapps
