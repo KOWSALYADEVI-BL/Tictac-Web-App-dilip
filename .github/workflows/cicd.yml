@@ -85,37 +85,19 @@ jobs:
         docker push $IMAGE
 
     # ------------------------------
-    # Configure EKS (eu-north-1)
+    # Configure EKS (eu-north-1) using AWS IAM
     # ------------------------------
-
-    - name: Setup AWS Credentials (EKS Region)
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: eu-north-1
-
-    # Create CA cert for kubectl
-    - name: Create CA Certificate File
-      run: |
-        echo "${{ secrets.EKS_CA_DATA }}" | base64 --decode > ca.crt
-
-    # Configure kubectl
     - name: Configure kubectl for EKS
       run: |
-        kubectl config set-cluster ${{ secrets.EKS_NAME }} \
-          --server=${{ secrets.EKS_ENDPOINT }} \
-          --certificate-authority=ca.crt
+        aws eks update-kubeconfig \
+          --region eu-north-1 \
+          --name ${{ secrets.EKS_NAME }} \
+          --alias github-eks
 
-        kubectl config set-credentials github-user \
-          --token=${{ secrets.EKS_TOKEN }}
-
-        kubectl config set-context ${{ secrets.EKS_NAME }} \
-          --cluster=${{ secrets.EKS_NAME }} \
-          --user=github-user \
-          --namespace=webapps
-
-        kubectl config use-context ${{ secrets.EKS_NAME }}
+    # Optional: verify kubectl access
+    - name: Verify kubectl access
+      run: |
+        kubectl get pods -n webapps
 
     # 12️⃣ Deploy to Kubernetes
     - name: Deploy to Kubernetes
