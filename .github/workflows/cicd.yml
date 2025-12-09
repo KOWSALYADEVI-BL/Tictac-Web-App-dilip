@@ -72,7 +72,7 @@ jobs:
           --region ${{ secrets.AWS_REGION }} \
           --name ${{ secrets.EKS_NAME }}
 
-    # 1️⃣1️⃣ Verify kubectl access
+    # 1️⃣1️⃣ Verify kubectl acce
     - name: Verify kubectl access
       run: kubectl get nodes
 
