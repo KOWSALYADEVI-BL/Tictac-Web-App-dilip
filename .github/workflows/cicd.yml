@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build_and_scan:
+  build_and_deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -80,7 +80,6 @@ jobs:
 
     # 11️⃣ Push Docker image to ECR
     - name: Push Docker Image
-      if: success()
       run: |
         echo "Pushing Docker Image: $IMAGE"
         docker push $IMAGE
@@ -96,28 +95,29 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-north-1
 
-    # Configure kubectl for EKS
+    # Create CA cert for kubectl
     - name: Create CA Certificate File
       run: |
         echo "${{ secrets.EKS_CA_DATA }}" | base64 --decode > ca.crt
 
+    # Configure kubectl
     - name: Configure kubectl for EKS
       run: |
         kubectl config set-cluster ${{ secrets.EKS_NAME }} \
-        --server=${{ secrets.EKS_ENDPOINT }} \
-        --certificate-authority=ca.crt
+          --server=${{ secrets.EKS_ENDPOINT }} \
+          --certificate-authority=ca.crt
 
         kubectl config set-credentials github-user \
-        --token=${{ secrets.EKS_TOKEN }}
+          --token=${{ secrets.EKS_TOKEN }}
 
         kubectl config set-context ${{ secrets.EKS_NAME }} \
-         --cluster=${{ secrets.EKS_NAME }} \
-         --user=github-user \
-         --namespace=default
+          --cluster=${{ secrets.EKS_NAME }} \
+          --user=github-user \
+          --namespace=webapps
 
         kubectl config use-context ${{ secrets.EKS_NAME }}
 
-    # 12️⃣ Deploy to kubernetes
+    # 12️⃣ Deploy to Kubernetes
     - name: Deploy to Kubernetes
       env:
         IMAGE: ${{ env.IMAGE }}
@@ -125,7 +125,7 @@ jobs:
         echo "Deploying image: $IMAGE to EKS cluster: ${{ secrets.EKS_NAME }}"
 
         kubectl set image deployment/tictac-app \
-          tictac=$IMAGE -n webapps --record
+          tictac=$IMAGE -n webapps
 
         echo "Waiting for rollout to finish..."
         kubectl rollout status deployment/tictac-app -n webapps
