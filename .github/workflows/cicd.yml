@@ -82,6 +82,6 @@ jobs:
         IMAGE: ${{ env.IMAGE }}
       run: |
         echo "Deploying image: $IMAGE to EKS cluster: EKSK-oct"
-        kubectl set image deployment/myapp-deployment \
-          nginx-container=$IMAGE -n default
-        kubectl rollout status deployment/myapp-deployment -n default
+        kubectl set image deployment/tictac-app \
+          tictac=$IMAGE -n default
+        kubectl rollout status deployment/tictac-app -n default
