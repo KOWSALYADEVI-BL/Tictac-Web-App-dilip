@@ -70,7 +70,7 @@ jobs:
       run: |
         aws eks update-kubeconfig \
           --region ${{ secrets.AWS_REGION }} \
-          --name ${{ secrets.EKS_NAME }}
+          --name EKSK-oct
 
     # 1️⃣1️⃣ Verify kubectl access
     - name: Verify kubectl access
@@ -81,7 +81,7 @@ jobs:
       env:
         IMAGE: ${{ env.IMAGE }}
       run: |
-        echo "Deploying image: $IMAGE to EKS cluster: ${{ secrets.EKS_NAME }}"
+        echo "Deploying image: $IMAGE to EKS cluster: EKSK-oct"
         kubectl set image deployment/myapp-deployment \
           nginx-container=$IMAGE -n default
         kubectl rollout status deployment/myapp-deployment -n default
