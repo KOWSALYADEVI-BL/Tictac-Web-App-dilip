@@ -31,7 +31,7 @@ jobs:
         unzip sonar-scanner-cli-4.8.0.2856-linux.zip
         echo "$(pwd)/sonar-scanner-4.8.0.2856-linux/bin" >> $GITHUB_PATH
 
-    # 5️⃣ Run SonarQube Scan ✅ FIXED PROJECT KEY
+    # 5️⃣ Run SonarQube Scan
     - name: Run SonarQube Scan
       run: |
         sonar-scanner \
@@ -40,7 +40,7 @@ jobs:
           -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
           -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-    # 6️⃣ Configure AWS Credentials ✅
+    # 6️⃣ Configure AWS Credentials
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -48,11 +48,11 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: eu-north-1
 
-    # 7️⃣ Login to Amazon ECR ✅
+    # 7️⃣ Login to Amazon ECR
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
 
-    # 8️⃣ Build & Push Docker Image ✅ FIXED (NO EMPTY IMAGE EVER)
+    # 8️⃣ Build & Push Docker Image
     - name: Build & Push Docker Image
       run: |
         IMAGE=191080270307.dkr.ecr.eu-north-1.amazonaws.com/tictac:${GITHUB_SHA::7}
@@ -60,18 +60,24 @@ jobs:
         docker build -t $IMAGE .
         docker push $IMAGE
 
-    # 🔟 Configure kubectl for EKS ✅
+    # 9️⃣ Save Docker Image & Upload to S3
+    - name: Save Docker Image & Upload to S3
+      run: |
+        docker save $IMAGE -o tictac-image.tar
+        aws s3 cp tictac-image.tar s3://my-tictac-images/
+
+    # 🔟 Configure kubectl for EKS
     - name: Configure kubectl
       run: |
         aws eks update-kubeconfig \
           --region eu-north-1 \
           --name EKSK-oct
 
-    # 1️⃣1️⃣ Verify kubectl ✅
+    # 1️⃣1️⃣ Verify kubectl
     - name: Verify kubectl access
       run: kubectl get nodes
 
-    # 1️⃣2️⃣ Deploy to Kubernetes ✅ FINAL & SAFE
+    # 1️⃣2️⃣ Deploy to Kubernetes
     - name: Deploy to Kubernetes
       env:
         IMAGE: ${{ env.IMAGE }}
