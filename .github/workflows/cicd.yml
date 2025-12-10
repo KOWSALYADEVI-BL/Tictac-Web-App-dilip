@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
     # 1️⃣ Checkout code
     - name: Checkout Code
       uses: actions/checkout@v3
@@ -23,57 +24,59 @@ jobs:
     - name: Install Dependencies
       run: npm install
 
-    # 4️⃣ (Optional) Run SonarQube Scan
-    - name: Run SonarQube Scan
+    # 4️⃣ Install Sonar Scanner (✅ FIXED PATH)
+    - name: Install Sonar Scanner
       run: |
         curl -sLO https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
         unzip sonar-scanner-cli-4.6.2.2472-linux.zip
         echo "$(pwd)/sonar-scanner-4.6.2.2472-linux/bin" >> $GITHUB_PATH
+
+    # 5️⃣ Run SonarQube Scan (✅ FIXED TOKEN ISSUE)
+    - name: Run SonarQube Scan
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
         sonar-scanner \
-          -Dsonar.projectKey=Tictac-App \
+          -Dsonar.projectKey=tictac-app \
           -Dsonar.sources=. \
           -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+          -Dsonar.login=$SONAR_TOKEN
 
-    # 5️⃣ Configure AWS credentials
+    # 6️⃣ Configure AWS credentials
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        aws-region: eu-north-1
 
-    # 6️⃣ Login to Amazon ECR
+    # 7️⃣ Login to Amazon ECR
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
 
-    # 7️⃣ Build Docker image
+    # 8️⃣ Build Docker Image
     - name: Build Docker Image
-      id: build_image
       run: |
-        IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/tictac:${GITHUB_SHA::7}"
+        IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/tictac:${GITHUB_SHA::7}"
         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
         docker build -t $IMAGE .
 
-    # 8️⃣ Push Docker image to ECR
+    # 9️⃣ Push Docker Image to ECR
     - name: Push Docker Image
       run: |
-        echo "Pushing Docker Image: $IMAGE"
         docker push $IMAGE
 
-    # 9️⃣ Configure kubectl for EKS
+    # 🔟 Configure kubectl for EKS
     - name: Configure kubectl
       run: |
-        aws eks update-kubeconfig \
-          --region ${{ secrets.AWS_REGION }} \
-          --name EKSK-oct
+        aws eks update-kubeconfig --region eu-north-1 --name EKSK-oct
 
-    # 🔟 Deploy to Kubernetes
+    # 1️⃣1️⃣ Verify cluster access
+    - name: Verify kubectl access
+      run: kubectl get nodes
+
+    # 1️⃣2️⃣ Deploy to Kubernetes (✅ DEFAULT NAMESPACE + CORRECT CONTAINER)
     - name: Deploy to Kubernetes
-      env:
-        IMAGE: ${{ env.IMAGE }}
       run: |
-        echo "Deploying image: $IMAGE to EKS cluster EKSK-oct"
-        kubectl set image deployment/tictac-app \
-          tictac=$IMAGE -n default
+        kubectl set image deployment/tictac-app tictac=$IMAGE -n default
         kubectl rollout status deployment/tictac-app -n default
